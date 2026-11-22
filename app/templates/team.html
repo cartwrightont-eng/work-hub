@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% from "_macros.html" import cell, period_form %}
+{% block title %}{{ data.team.name }}{% endblock %}
+{% block body %}<h1>{{ data.team.name }} team</h1>
+<p class="note">Figures are input to a review conversation, not the verdict. People are listed alphabetically and each is compared only with their own previous period.</p>
+{{ period_form(data.period_weeks, periods, data.as_of) }}
+<div class="grid"><div class="card"><h2>Team on-time rate</h2>{{ cell(data.summary.on_time) }}</div>
+<div class="card"><h2>Team rework rate</h2>{{ cell(data.summary.rework) }}</div></div>
+<div class="card"><h2>People in {{ data.team.name }}</h2><div class="wrap"><table><thead><tr><th>Person</th><th>Role</th><th>On-time rate</th><th>Rework rate</th><th>Detail</th></tr></thead><tbody>
+{% for p in data.people %}<tr><td>{{ p.name }}</td><td>{{ p.role }}</td><td>{{ cell(p.on_time) }}</td><td>{{ cell(p.rework) }}</td>
+<td><a href="/people/{{ p.id }}?weeks={{ [data.period_weeks,4]|max }}">Open scorecard</a></td></tr>{% endfor %}</tbody></table></div></div>
+<h2 style="margin-top:16px">Points completed per week, one chart per person</h2><p class="mute">Each chart has its own scale and shows one person against their own earlier weeks. They are not meant to be compared with each other.</p>
+<div class="grid">{% for c in data.charts %}<div class="card"><h2>{{ c.name }}</h2><canvas id="pc{{ c.id }}" role="img" aria-label="Points per week for {{ c.name }}"></canvas></div>{% endfor %}</div>
+<script id="d" type="application/json">{{ data.charts|tojson }}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>if(window.Chart){const acc=getComputedStyle(document.documentElement).getPropertyValue('--acc');
+JSON.parse(document.getElementById('d').textContent).forEach(c=>new Chart(document.getElementById('pc'+c.id),
+{type:'bar',data:{labels:c.labels,datasets:[{label:'Points',data:c.points,backgroundColor:acc}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true},x:{ticks:{maxRotation:60}}}}}));}</script>
+{% endblock %}

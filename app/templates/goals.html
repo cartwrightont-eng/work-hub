@@ -1,0 +1,54 @@
+{% extends "base.html" %}{% block title %}Goals{% endblock %}
+{% block body %}<h1>Goals</h1>
+<p class="note">Progress is the average of a goal's key results and the goals directly below it, so personal updates move team and company progress. Status compares progress with the share of the cycle that has passed.</p>
+{% if due %}<div class="card" role="status"><h2>Weekly check-in</h2><p>These key results have not been updated in the last 7 days:</p><ul>{% for k in due %}<li>{{ k.title }}</li>{% endfor %}</ul></div>{% endif %}
+<details class="card" id="newgoal"><summary><strong>Add a goal</strong></summary>
+<form id="goalform" style="display:grid;gap:10px;margin-top:10px;max-width:42rem">
+<div class="row"><label for="g-level">Level</label><select id="g-level" required></select></div>
+<div id="g-parent-row" class="row"><label for="g-parent">Supports</label><select id="g-parent"></select></div>
+<div id="g-team-row" class="row"><label for="g-team">Team</label><select id="g-team"></select></div>
+<div id="g-owner-row" class="row"><label for="g-owner">Owner</label><select id="g-owner"></select></div>
+<div><label for="g-title" class="mute">Goal (what outcome, not what activity)</label><br><input id="g-title" required maxlength="200" style="width:100%;box-sizing:border-box"></div>
+<p class="mute" style="margin:0">It runs for the current quarter. Add key results after you create it.</p>
+<div class="row"><button type="submit">Create goal</button><span id="g-msg" role="status"></span></div></form>
+<script id="form-data" type="application/json">{{ form|tojson }}</script></details>
+{% set names={1:'Company',2:'Team',3:'Personal'} %}{% set labels={'on_track':'On track','at_risk':'At risk','off_track':'Off track','no_data':'No key results yet'} %}
+{% for o in objectives %}<section class="card" style="margin-left:{{ (o.level-1)*18 }}px" aria-label="{{ names[o.level] }} goal">
+<div class="mute">{{ names[o.level] }} goal · {{ o.cycle_start }} to {{ o.cycle_end }}</div><h2>{{ o.title }}</h2>
+<p>{% if o.progress is not none %}<progress max="100" value="{{ (o.progress*100)|round|int }}" aria-label="Progress"></progress> {{ (o.progress*100)|round|int }}% · {% endif %}<strong>{{ labels[o.status] }}</strong> <span class="mute">({{ (o.elapsed*100)|round|int }}% of the cycle has passed)</span></p>
+{% for k in o.key_results %}<form class="kr" data-id="{{ k.id }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0">
+<span>{{ k.title }}: {{ '%g'|format(k.current) }} of {{ '%g'|format(k.target) }}</span>
+{% if k.can_update %}<label for="k{{ k.id }}" class="mute">New value</label><input id="k{{ k.id }}" type="number" step="any" required style="width:7em;padding:6px"><button type="submit">Save</button>{% endif %}</form>{% endfor %}
+{% if o.editable %}<details style="margin-top:6px"><summary class="mute">Add a key result</summary>
+<form class="newkr row" data-goal="{{ o.id }}" style="margin-top:6px"><label class="mute" for="kt{{ o.id }}">Measure</label><input id="kt{{ o.id }}" required style="width:16em">
+<label class="mute" for="ks{{ o.id }}">Starts at</label><input id="ks{{ o.id }}" type="number" step="any" value="0" style="width:6em">
+<label class="mute" for="kg{{ o.id }}">Target</label><input id="kg{{ o.id }}" type="number" step="any" required style="width:6em"><button type="submit">Add</button><span class="kmsg" role="status"></span></form></details>{% endif %}
+</section>{% else %}<p>No goals yet.</p>{% endfor %}
+<script>const csrf=(document.cookie.match(/csrf_access_token=([^;]+)/)||[])[1];
+document.querySelectorAll('form.kr').forEach(f=>f.addEventListener('submit',async e=>{e.preventDefault();
+const r=await fetch('/api/key-results/'+f.dataset.id,{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf},body:JSON.stringify({current:f.querySelector('input').value})});
+if(r.ok)location.reload();else alert('Could not save that value.');}));</script><script>
+const fd=JSON.parse(document.getElementById('form-data').textContent),$=id=>document.getElementById(id);
+const opt=(v,t)=>{const o=document.createElement('option');o.value=v;o.textContent=t;return o;};
+const lv=$('g-level');
+if(fd.company)lv.append(opt(1,'Company goal'));
+if(fd.teams.length&&fd.parents.some(p=>p.level===1))lv.append(opt(2,'Team goal'));
+if(fd.parents.some(p=>p.level===2))lv.append(opt(3,'Personal goal'));
+if(!lv.options.length)$('newgoal').remove();
+else{
+ const sync=()=>{const L=+lv.value;
+  $('g-parent-row').hidden=L===1;$('g-team-row').hidden=L!==2;$('g-owner-row').hidden=L!==3;
+  $('g-parent').replaceChildren(...fd.parents.filter(p=>p.level===L-1).map(p=>opt(p.id,p.title)));
+  $('g-team').replaceChildren(...fd.teams.map(t=>opt(t.id,t.name)));
+  if(L===3){const p=fd.parents.find(x=>String(x.id)===$('g-parent').value);const ms=(p&&fd.members[p.team_id])||[];
+   const canAssign=fd.ceo||(p&&fd.lead_of.includes(p.team_id));
+   $('g-owner').replaceChildren(...ms.filter(m=>canAssign||m.id===fd.me).map(m=>opt(m.id,m.name)));
+   $('g-owner').value=String(fd.me);}};
+ lv.addEventListener('change',sync);$('g-parent').addEventListener('change',()=>{if(+lv.value===3)sync();});sync();
+ $('goalform').addEventListener('submit',async e=>{e.preventDefault();const L=+lv.value,b={level:L,title:$('g-title').value};
+  if(L>1)b.parent_id=+$('g-parent').value;if(L===2)b.team_id=+$('g-team').value;if(L===3)b.owner_id=+$('g-owner').value;
+  const r=await hub.call('POST','/api/objectives',b);if(r.ok)location.reload();else hub.say($('g-msg'),r.data.error||'Could not create it.',true);});}
+document.querySelectorAll('form.newkr').forEach(f=>f.addEventListener('submit',async e=>{e.preventDefault();const q=f.querySelectorAll('input');
+ const r=await hub.call('POST','/api/objectives/'+f.dataset.goal+'/key-results',{title:q[0].value,start_value:+q[1].value,target:+q[2].value});
+ if(r.ok)location.reload();else hub.say(f.querySelector('.kmsg'),r.data.error||'Could not add it.',true);}));
+</script>{% endblock %}

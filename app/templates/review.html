@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% block title %}Review{% endblock %}
+{% block body %}<h1>Review queue</h1>
+<p class="note">Work waiting for your approval, longest-waiting first. This is a to-do list, not a ranking. Sending work back needs a reason and counts toward that person's rework rate.</p>
+<p id="msg" role="alert" class="mute"></p>
+<div class="card"><h2>Waiting for you ({{ d.queue|length }})</h2>
+{% if d.queue %}<div class="wrap"><table><thead><tr><th>Deliverable</th><th>Owner</th><th>Points</th><th>Deadline</th><th>Waiting</th><th>Notes</th><th>Decision</th></tr></thead><tbody>
+{% for i in d.queue %}<tr data-id="{{ i.id }}"><td>{{ i.title }}<div class="mute">{{ i.team }}{% if i.latest_log %} · latest log: {{ i.latest_log }}{% endif %}</div></td><td>{{ i.owner.name }}</td><td>{{ i.points if i.points is not none else '–' }}</td>
+<td>{{ i.deadline }}{% if i.overdue %} <strong>(overdue)</strong>{% endif %}</td><td>{{ i.waiting_days }} days</td>
+<td>{% if i.resubmitted %}Resubmitted after changes. {% endif %}{% if i.deadline_moved %}Deadline moved {{ i.deadline_moved }}×. {% endif %}{% if i.needs_ceo %}Needs CEO sign-off.{% endif %}</td>
+<td><label class="mute" for="r{{ i.id }}">Reason (needed to send back)</label><input id="r{{ i.id }}" style="width:14em;padding:6px">
+<button type="button" class="act" data-action="approve">Approve</button> <button type="button" class="act" data-action="reject">Send back</button></td></tr>{% endfor %}</tbody></table></div>
+{% else %}<p>Nothing is waiting for your approval.</p>{% endif %}</div>
+<div class="card"><h2>Your work waiting for review ({{ d.waiting_on_others|length }})</h2>
+{% for i in d.waiting_on_others %}<p>{{ i.title }} · waiting {{ i.waiting_days }} days · with {{ i.waiting_on }}</p>{% else %}<p>None of your work is waiting on review.</p>{% endfor %}</div>
+<script>const csrf=(document.cookie.match(/csrf_access_token=([^;]+)/)||[])[1];
+document.querySelectorAll('button.act').forEach(b=>b.addEventListener('click',async()=>{const row=b.closest('tr'),action=b.dataset.action,reason=row.querySelector('input').value.trim();
+if(action==='reject'&&!reason){msg.textContent='Add a reason before sending work back.';return;}
+const r=await fetch('/api/deliverables/'+row.dataset.id+'/transition',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf},body:JSON.stringify({action,reason})});
+if(r.ok)location.reload();else msg.textContent=(await r.json()).error;}));</script>{% endblock %}

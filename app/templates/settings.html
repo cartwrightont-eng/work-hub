@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% block title %}Settings{% endblock %}
+{% block body %}<h1>Organisation settings</h1><p class="note">Changes apply from the next request and are recorded in the audit log.</p>
+<form id="f" class="card" style="display:grid;gap:10px;max-width:640px">
+<label for="timezone">Timezone</label><input id="timezone" value="{{ s.timezone }}" required>
+<label for="scale">Point scale (comma separated, increasing)</label><input id="scale" value="{{ s.point_scale|join(', ') }}" required>
+<label for="labels">Point labels (one per line, like 3=M)</label><textarea id="labels" rows="3">{% for k,v in s.point_labels.items() %}{{ k }}={{ v }}
+{% endfor %}</textarea>
+<label for="rubric">Sizing rubric (one per line, like 3=About one day)</label><textarea id="rubric" rows="5">{% for k,v in s.point_rubric.items() %}{{ k }}={{ v }}
+{% endfor %}</textarea>
+<label for="types">Allowed file types (comma separated)</label><input id="types" value="{{ s.file_types|join(', ') }}" required>
+<label for="mb">Maximum file size (MB)</label><input id="mb" type="number" step="any" min="0.1" max="25" value="{{ s.max_file_mb }}" required>
+<label for="rule">Cycle time after a reopen</label><select id="rule"><option value="restart" {{ 'selected' if s.reopen_rule=='restart' }}>Restart the clock</option><option value="first_start" {{ 'selected' if s.reopen_rule=='first_start' }}>Measure from the first start</option></select>
+<label for="lo">On-time target band, low (0 to 1)</label><input id="lo" type="number" step="0.01" min="0" max="1" value="{{ s.on_time_band[0] }}">
+<label for="hi">On-time target band, high (0 to 1)</label><input id="hi" type="number" step="0.01" min="0" max="1" value="{{ s.on_time_band[1] }}">
+<fieldset><legend>Visibility (all off by default)</legend>
+<label><input type="checkbox" id="peer" {{ 'checked' if s.peer_visibility }}> Team members can see each other's scorecards</label>
+<label><input type="checkbox" id="lb" {{ 'checked' if s.team_leaderboards }}> Team leaderboards</label>
+<label><input type="checkbox" id="cmp" {{ 'checked' if s.comparison_views }}> Side-by-side comparison charts and sortable people tables</label>
+<p class="mute">Comparing points between people encourages inflated estimates. Turn these on only if you accept that.</p></fieldset>
+<fieldset><legend>Email notifications</legend>
+<label><input type="checkbox" id="notif" {{ 'checked' if s.notifications_enabled }}> Send emails for work awaiting review, due soon and overdue</label>
+<label for="soon">Remind owners this many days before a deadline (0 turns due-soon reminders off)</label><input id="soon" type="number" min="0" max="14" value="{{ s.notify_due_soon_days }}"></fieldset>
+<p id="msg" role="status"></p><button type="submit">Save settings</button></form>
+<script>const csrf=(document.cookie.match(/csrf_access_token=([^;]+)/)||[])[1];
+const map=t=>Object.fromEntries(t.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const i=l.indexOf('=');return [l.slice(0,i).trim(),l.slice(i+1).trim()]}));
+const list=t=>t.split(',').map(x=>x.trim()).filter(Boolean);
+f.addEventListener('submit',async e=>{e.preventDefault();
+const body={timezone:timezone.value.trim(),point_scale:list(scale.value).map(Number),point_labels:map(labels.value),point_rubric:map(rubric.value),
+file_types:list(types.value),max_file_mb:Number(mb.value),reopen_rule:rule.value,on_time_band:[Number(lo.value),Number(hi.value)],
+notifications_enabled:notif.checked,notify_due_soon_days:Number(soon.value),peer_visibility:peer.checked,team_leaderboards:lb.checked,comparison_views:cmp.checked};
+const r=await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf},body:JSON.stringify(body)});
+msg.textContent=r.ok?'Saved.':(await r.json()).error;});</script>{% endblock %}

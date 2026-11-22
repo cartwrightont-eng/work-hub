@@ -1,0 +1,65 @@
+{% extends "base.html" %}{% block title %}{{ d.title }}{% endblock %}
+{% block body %}<p class="mute"><a href="/work">← Back to work</a></p>
+<h1>{{ d.title }}</h1>
+<div class="row"><span class="badge {{ 'warn' if d.status == 'reopened' }}">{{ status }}</span>
+<span class="mute">{{ owner }} · {{ team }}</span></div>
+<div class="grid" style="margin-top:12px">
+<div class="card"><div class="mute">Size</div><div class="big">{{ d.points if d.points is not none else '–' }}{% for s in sizes if s.points == d.points %}<span class="mute"> {{ s.label }}</span>{% endfor %}</div>
+{% for s in sizes if s.points == d.points %}<div class="mute">{{ s.rubric }}</div>{% endfor %}{% if d.points is none %}<div class="mute">Not sized yet. The team lead sizes it below before it can start.</div>{% endif %}</div>
+<div class="card"><div class="mute">Deadline</div><div class="big" style="font-size:1.4rem">{{ d.deadline }}</div>
+{% if moved %}<div class="mute">Originally {{ d.original_deadline }}. The on-time rate is still measured against the original date.</div>{% endif %}</div>
+<div class="card"><div class="mute">Linked goal</div>
+{% if linked %}<div><strong>{{ linked.kr }}</strong></div><div class="mute">{{ linked.goal }}</div>{% else %}<div class="mute">Not linked to a goal.</div>{% endif %}
+{% if link_choices %}<div class="row"><label class="mute" for="link">Link to key result</label><select id="link"><option value="">Choose…</option>
+{% for k in link_choices %}<option value="{{ k.id }}" {{ 'selected' if k.id == d.key_result_id }}>{{ k.goal }} → {{ k.kr }}</option>{% endfor %}</select><button type="button" id="linkbtn" class="ghost">Link</button></div>{% endif %}</div></div>
+{% if d.description %}<div class="card"><h2>Details</h2><p style="white-space:pre-wrap;margin:0">{{ d.description }}</p></div>{% endif %}
+<p id="msg" role="alert"></p>
+
+{% if actions or approver %}<div class="card"><h2>What you can do</h2>
+{% if actions %}<div class="row">{% for a, text in actions %}<button type="button" class="act" data-action="{{ a }}">{{ text }}</button>{% endfor %}</div>{% endif %}
+{% if approver %}<div class="row"><label class="mute" for="reason">Reason (needed to send back)</label><input id="reason" style="width:18em">
+<button type="button" class="act" data-action="approve">Approve</button><button type="button" class="act ghost" data-action="reject">Send back</button></div>{% endif %}</div>{% endif %}
+
+{% if mgr and d.status != 'done' %}<details class="card"><summary><strong>Change deadline or size</strong> <span class="mute">(team lead, always with a reason)</span></summary>
+<form id="amend" class="row" style="margin-top:10px"><label for="a-deadline" class="mute">Deadline</label><input id="a-deadline" type="date" value="{{ d.deadline }}">
+<label for="a-points" class="mute">Size</label><select id="a-points"><option value="">Unchanged</option>{% for s in sizes %}<option value="{{ s.points }}">{{ s.points }}{% if s.label %} · {{ s.label }}{% endif %} — {{ s.rubric }}</option>{% endfor %}</select>
+<label for="a-reason" class="mute">Reason</label><input id="a-reason" required style="width:16em"><button type="submit">Save change</button></form></details>{% endif %}
+
+<div class="grid" style="margin-top:12px">
+<div class="card"><h2>Work log</h2>
+{% if owns %}<form id="logform" class="row"><label for="logbody" class="mute">What did you finish, start, or get stuck on?</label>
+<textarea id="logbody" rows="2" required maxlength="2000" style="width:100%;box-sizing:border-box"></textarea><button type="submit">Save entry</button></form>{% endif %}
+{% for l in logs %}<p style="margin:10px 0 0"><span class="mute">{{ l.entry_date }} · {{ l.author }}</span><br><span style="white-space:pre-wrap">{{ l.body }}</span></p>
+{% else %}<p class="mute">No entries yet.</p>{% endfor %}</div>
+
+<div class="card"><h2>Documents</h2>
+{% if can_upload %}<form id="upload" class="row"><label for="file" class="mute">Add a file. The same file name adds a new version.</label><input id="file" type="file" required><button type="submit">Upload</button></form>{% endif %}
+{% for doc in docs %}<div style="margin-top:10px"><strong>{{ doc.name }}</strong>
+{% for v in doc.versions %}<div class="mute"><a href="/api/documents/{{ doc.id }}/download?version={{ v.version }}">Version {{ v.version }}{{ ' (latest)' if loop.first }}</a> · {{ (v.size_bytes / 1024)|round(1) }} KB · {{ v.by }} · {{ v.uploaded_at.strftime('%d %b %Y') }}</div>{% endfor %}</div>
+{% else %}<p class="mute">No files yet.</p>{% endfor %}</div></div>
+
+<div class="card"><h2>History</h2>
+{% for e in events %}<div class="mute">{{ e.created_at.strftime('%d %b %Y %H:%M') }} · {{ e.actor }} · {{ status_names.get(e.from_status, 'Created') if e.from_status else 'Created' }} → {{ status_names[e.to_status] }}{% if e.note %} · “{{ e.note }}”{% endif %}</div>{% endfor %}
+{% for c in changes %}<div class="mute">{{ c.created_at.strftime('%d %b %Y %H:%M') }} · {{ c.actor }} · {{ 'Deadline' if c.action == 'deadline_change' else 'Size' }} changed from {{ c.detail.old }} to {{ c.detail.new }} · “{{ c.detail.reason }}”</div>{% endfor %}</div>
+
+<script>
+const msg=document.getElementById('msg'),API='/api/deliverables/{{ d.id }}';
+document.querySelectorAll('button.act').forEach(b=>b.addEventListener('click',async()=>{
+  const reason=(document.getElementById('reason')||{}).value||'';
+  if(b.dataset.action==='reject'&&!reason.trim()){hub.say(msg,'Add a reason before sending work back.',true);return;}
+  b.disabled=true;const r=await hub.call('POST',API+'/transition',{action:b.dataset.action,reason});
+  if(r.ok)location.reload();else{hub.say(msg,r.data.error||'That did not work.',true);b.disabled=false;}}));
+const on=(id,ev,fn)=>{const e=document.getElementById(id);if(e)e.addEventListener(ev,fn);};
+on('amend','submit',async e=>{e.preventDefault();const body={reason:document.getElementById('a-reason').value};
+  const dl=document.getElementById('a-deadline').value,pt=document.getElementById('a-points').value;
+  if(dl&&dl!=='{{ d.deadline }}')body.deadline=dl;if(pt!=='')body.points=+pt;
+  if(!('deadline' in body||'points' in body)){hub.say(msg,'Change the deadline or the size first.',true);return;}
+  const r=await hub.call('PATCH',API,body);if(r.ok)location.reload();else hub.say(msg,r.data.error||'Could not save.',true);});
+on('logform','submit',async e=>{e.preventDefault();const r=await hub.call('POST',API+'/worklog',{body:document.getElementById('logbody').value});
+  if(r.ok)location.reload();else hub.say(msg,r.data.error||'Could not save.',true);});
+on('upload','submit',async e=>{e.preventDefault();const f=new FormData();f.append('parent_type','deliverable');f.append('parent_id','{{ d.id }}');
+  f.append('file',document.getElementById('file').files[0]);const r=await hub.call('POST','/api/documents',f);
+  if(r.ok)location.reload();else hub.say(msg,r.data.error||'Upload failed.',true);});
+on('linkbtn','click',async()=>{const v=document.getElementById('link').value;if(!v){hub.say(msg,'Choose a key result first.',true);return;}
+  const r=await hub.call('POST',API+'/link',{key_result_id:+v});if(r.ok)location.reload();else hub.say(msg,r.data.error||'Could not link.',true);});
+</script>{% endblock %}

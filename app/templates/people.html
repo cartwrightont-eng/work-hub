@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% block title %}People{% endblock %}
+{% block body %}<h1>People and teams</h1>
+<p class="note">Add the email and a starting password for each person so they can sign in. Deactivating someone signs them out at once.</p>
+<div class="card"><h2>People</h2><div class="wrap"><table><thead><tr><th>Name</th><th>Teams</th><th>Roles</th><th>Email</th><th>New password</th><th>Active</th><th></th></tr></thead><tbody>
+{% for p in d.people %}<tr data-id="{{ p.id }}"><td>{{ p.name }}</td>
+<td>{% for t in p.teams %}{{ t.team }}{{ ' (lead)' if t.is_lead }}{% if t.reports_to %}, reports to {{ t.reports_to }}{% endif %}<br>{% else %}–{% endfor %}</td>
+<td>{{ p.roles|join(', ') or '–' }}</td>
+<td><label class="mute" for="e{{ p.id }}">Email</label><input id="e{{ p.id }}" type="email" value="{{ p.email or '' }}" style="width:14em;padding:6px"></td>
+<td><label class="mute" for="w{{ p.id }}">{{ 'Reset password' if p.has_password else 'Set password' }}</label><input id="w{{ p.id }}" type="password" autocomplete="new-password" style="width:11em;padding:6px"></td>
+<td><label class="mute" for="a{{ p.id }}">Active</label><input id="a{{ p.id }}" type="checkbox" {{ 'checked' if p.active }}></td>
+<td><button type="button" class="save">Save</button></td></tr>{% endfor %}</tbody></table></div></div>
+<div class="grid"><form class="card" id="newperson" style="display:grid;gap:8px"><h2>Add a person</h2>
+<label for="n_name">Full name</label><input id="n_name" required>
+<label for="n_email">Email</label><input id="n_email" type="email">
+<label for="n_pw">Starting password (12+ characters, upper, lower, digit)</label><input id="n_pw" type="password" autocomplete="new-password">
+<label for="n_team">Team</label><select id="n_team"><option value="">No team</option>{% for t in d.teams %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select>
+<label><input type="checkbox" id="n_lead"> Leads that team</label>
+<label for="n_boss">Reports to</label><select id="n_boss"><option value="">Nobody</option>{% for p in d.people %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+<label for="n_role">Role</label><select id="n_role"><option value="">Automatic (lead or member)</option>{% for r in d.roles %}<option>{{ r }}</option>{% endfor %}</select>
+<button type="submit">Add person</button></form>
+<form class="card" id="newteam" style="display:grid;gap:8px;align-content:start"><h2>Add a team</h2><label for="t_name">Team name</label><input id="t_name" required><button type="submit">Add team</button></form></div>
+<p id="msg" role="status" class="note"></p>
+<script>const csrf=(document.cookie.match(/csrf_access_token=([^;]+)/)||[])[1];
+async function send(m,u,b){const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf},body:JSON.stringify(b)});
+ if(r.ok){location.reload();}else{msg.textContent=(await r.json()).error||'That did not work.';}}
+document.querySelectorAll('button.save').forEach(b=>b.addEventListener('click',()=>{const id=b.closest('tr').dataset.id,body={email:document.getElementById('e'+id).value,active:document.getElementById('a'+id).checked};
+ const pw=document.getElementById('w'+id).value;if(pw)body.password=pw;send('PATCH','/api/admin/users/'+id,body);}));
+newperson.addEventListener('submit',e=>{e.preventDefault();const b={full_name:n_name.value,email:n_email.value||null,password:n_pw.value||null};
+ if(n_team.value)b.membership={team_id:Number(n_team.value),is_lead:n_lead.checked,reports_to:n_boss.value?Number(n_boss.value):null};
+ if(n_role.value)b.roles=[n_role.value];send('POST','/api/admin/users',b);});
+newteam.addEventListener('submit',e=>{e.preventDefault();send('POST','/api/admin/teams',{name:t_name.value});});</script>{% endblock %}

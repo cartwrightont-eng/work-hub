@@ -1,0 +1,5 @@
+{% macro cell(m) %}{% if m.rate is none %}<span class="mute">No data</span>{% else %}{{ '%.0f%%'|format(m.rate*100) }}
+<span class="mute">· n={{ m.n }}{% if m.change_pts is not none %} · {{ '%+.1f'|format(m.change_pts) }} pts vs own previous period{% endif %}</span>{% endif %}{% endmacro %}
+{% macro period_form(weeks, periods, as_of) %}<form method="get" class="pf"><label for="weeks">Period</label>
+<select id="weeks" name="weeks">{% for p in periods %}<option value="{{ p }}" {{ 'selected' if p == weeks }}>Last {{ p }} weeks</option>{% endfor %}</select>
+<input type="hidden" name="as_of" value="{{ as_of }}"><button type="submit">Apply</button></form>{% endmacro %}

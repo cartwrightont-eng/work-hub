@@ -1,0 +1,78 @@
+{
+  "organisation": {
+    "name": "Homerr",
+    "slug": "homerr"
+  },
+  "ceo": {
+    "name": "Sebastian Rague"
+  },
+  "teams": [
+    {
+      "name": "Marketing",
+      "lead": "Laura",
+      "members": []
+    },
+    {
+      "name": "Operations",
+      "lead": "Shenaaz (Naaz)",
+      "members": []
+    },
+    {
+      "name": "Finance and Strategy",
+      "lead": "Michael",
+      "members": []
+    },
+    {
+      "name": "Tech",
+      "lead": "Trevor",
+      "members": [
+        {
+          "name": "Georgina",
+          "reports_to": "Trevor"
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "timezone": "Africa/Nairobi",
+    "point_scale": [
+      1,
+      2,
+      3,
+      5,
+      8
+    ],
+    "point_labels": {
+      "1": "S",
+      "2": "S",
+      "3": "M",
+      "5": "L",
+      "8": "L"
+    },
+    "point_rubric": {
+      "1": "Under 2 hours, nothing unknown",
+      "2": "About half a day",
+      "3": "About one day",
+      "5": "Two to three days, or some unknowns",
+      "8": "About a week, or real unknowns"
+    },
+    "file_types": [
+      "pdf",
+      "docx",
+      "xlsx",
+      "pptx",
+      "csv",
+      "png",
+      "jpg"
+    ],
+    "max_file_mb": 10,
+    "reopen_rule": "restart",
+    "peer_visibility": false,
+    "team_leaderboards": false,
+    "comparison_views": false,
+    "on_time_band": [
+      0.8,
+      0.9
+    ]
+  }
+}

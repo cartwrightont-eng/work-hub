@@ -1,0 +1,48 @@
+{% extends "base.html" %}{% block title %}Work{% endblock %}
+{% block body %}<h1>Work</h1>
+<p class="note">Deliverables you can see, by stage. Cards are sorted by deadline. Size and deadline changes are made on the deliverable's page, with a reason, so the history stays honest.</p>
+<form method="get" class="pf"><label for="team">Team</label>
+<select id="team" name="team"><option value="">All teams I can see</option>{% for tid, tname in d.teams %}<option value="{{ tid }}" {{ 'selected' if d.team_filter == tid }}>{{ tname }}</option>{% endfor %}</select>
+<button type="submit">Apply</button></form>
+<p id="msg" role="alert"></p>
+
+{% if choices %}<details class="card" id="create-panel"><summary><strong>Add a deliverable</strong></summary>
+<form id="create" style="display:grid;gap:10px;margin-top:10px;max-width:46rem">
+<div class="row"><label for="c-team">Team</label><select id="c-team" required>{% for t in choices %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select>
+<label for="c-owner">Assign to</label><select id="c-owner" required></select></div>
+<div><label for="c-title" class="mute">What needs to be delivered</label><br><input id="c-title" required maxlength="200" style="width:100%;box-sizing:border-box"></div>
+<div><label for="c-desc" class="mute">Details (optional)</label><br><textarea id="c-desc" rows="2" style="width:100%;box-sizing:border-box"></textarea></div>
+<div class="row"><label for="c-deadline">Deadline</label><input id="c-deadline" type="date" required value="{{ default_deadline }}"></div>
+<fieldset><legend>Size (how big is this?)</legend><div class="sizes">
+<label><input type="radio" name="size" value="" checked> Not sized yet<span class="mute"> · must be sized before it can start</span></label>
+{% for s in sizes %}<label><input type="radio" name="size" value="{{ s.points }}"><strong>{{ s.points }}</strong>{% if s.label %} · {{ s.label }}{% endif %}<span class="mute"><br>{{ s.rubric }}</span></label>{% endfor %}</div></fieldset>
+<div class="row"><button type="submit">Add to backlog</button><span id="create-msg" role="status"></span></div></form>
+<script id="team-data" type="application/json">{{ choices|tojson }}</script></details>{% endif %}
+
+<div class="cols">{% for key, label, cards in d.columns %}<section class="col" aria-label="{{ label }}"><h2>{{ label }} <span class="badge">{{ cards|length }}</span></h2>
+{% for c in cards %}<article class="dcard" data-id="{{ c.id }}"><a class="t" href="/work/{{ c.id }}">{{ c.title }}</a>
+<div class="mute">{{ c.owner_name }} · {{ c.team_name }}</div>
+<div class="row"><span class="badge">{{ (c.points ~ ' pts') if c.points is not none else 'Not sized' }}</span>
+<span class="badge {{ 'warn' if c.overdue }}">Due {{ c.deadline }}{{ ' (overdue)' if c.overdue }}</span>
+{% if c.status == 'reopened' %}<span class="badge warn">Sent back</span>{% endif %}</div>
+<div class="row">{% for a, text in c.actions %}<button type="button" class="act" data-action="{{ a }}">{{ text }}</button>{% endfor %}
+{% if c.can_review %}<a href="/review">Review it</a>{% endif %}
+{% if c.needs_size %}<span class="mute">Needs a size before it can start</span>{% endif %}</div></article>
+{% else %}<p class="mute">Nothing here.</p>{% endfor %}</section>{% endfor %}</div>
+
+<script>
+const msg=document.getElementById('msg');
+document.querySelectorAll('button.act').forEach(b=>b.addEventListener('click',async()=>{
+  b.disabled=true;const r=await hub.call('POST','/api/deliverables/'+b.closest('.dcard').dataset.id+'/transition',{action:b.dataset.action});
+  if(r.ok)location.reload();else{hub.say(msg,r.data.error||'That did not work.',true);b.disabled=false;}}));
+const td=document.getElementById('team-data');
+if(td){const teams=JSON.parse(td.textContent),ts=document.getElementById('c-team'),os=document.getElementById('c-owner');
+  const fill=()=>{const t=teams.find(x=>String(x.id)===ts.value);os.replaceChildren(...t.members.map(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=m.name;return o;}));};
+  ts.addEventListener('change',fill);fill();
+  document.getElementById('create').addEventListener('submit',async e=>{e.preventDefault();const cm=document.getElementById('create-msg');
+    const size=document.querySelector('input[name=size]:checked').value;
+    const body={team_id:+ts.value,owner_id:+os.value,title:document.getElementById('c-title').value,description:document.getElementById('c-desc').value,
+      deadline:document.getElementById('c-deadline').value,points:size===''?null:+size};
+    const r=await hub.call('POST','/api/deliverables',body);
+    if(r.ok)location.reload();else hub.say(cm,r.data.error||'Could not add it.',true);});}
+</script>{% endblock %}

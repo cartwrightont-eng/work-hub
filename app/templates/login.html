@@ -1,0 +1,15 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · Work Hub</title><style>
+body{font:16px system-ui,sans-serif;background:#f6f5f1;color:#1d2521;display:grid;place-items:center;min-height:100vh;margin:0}
+form{background:#fff;padding:24px;border-radius:10px;width:min(340px,90vw);border:1px solid #ddd}
+label{display:block;margin:12px 0 4px;font-weight:600}input{width:100%;padding:10px;box-sizing:border-box;border:1px solid #888;border-radius:6px;font:inherit}
+button{margin-top:16px;width:100%;padding:11px;background:#1f6f5c;color:#fff;border:0;border-radius:6px;font:inherit;cursor:pointer}
+#e{color:#a02020;min-height:1.2em}</style></head><body>
+<form id="f"><h1 style="font-size:1.3rem;margin:0">Work Hub</h1>
+<label for="email">Email</label><input id="email" type="email" autocomplete="username" required>
+<label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required>
+<p id="e" role="alert"></p><button type="submit">Sign in</button></form>
+<script>document.getElementById('f').addEventListener('submit',async ev=>{ev.preventDefault();
+const r=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({email:email.value,password:pw.value})});
+if(r.ok)location='/my-work';else e.textContent=r.status===429?'Too many attempts. Wait a minute.':'Email or password is wrong.'});</script></body></html>

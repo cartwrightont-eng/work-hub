@@ -1,0 +1,38 @@
+{% extends "base.html" %}{% block title %}{{ name }} · Scorecard{% endblock %}
+{% block body %}<style>.chart{position:relative;height:260px}</style>
+<h1>{{ name }}{% if own %} · My work{% endif %}</h1>
+{% if not own %}<p class="note">You are viewing {{ name }}'s scorecard. This view is recorded in the audit log.</p>{% endif %}
+<p class="note">These figures are input to a review conversation, not the verdict. Each is shown against {{ 'your' if own else 'their' }} own earlier weeks, and the number of items behind it is shown on every chart.</p>
+<div class="grid" role="list">
+{% set t=data.tiles %}{% set p=data.previous %}
+<div class="card" role="listitem"><div class="mute">On-time rate (last 4 weeks)</div><div class="big">{{ '%.0f%%'|format(t.on_time.rate*100) if t.on_time.rate is not none else 'No data' }}</div><div class="mute">{{ t.on_time.n }} deliverables due{% if p.on_time.rate is not none and t.on_time.rate is not none %} · {{ '%+.0f'|format((t.on_time.rate-p.on_time.rate)*100) }} pts vs previous 4 weeks{% endif %}</div></div>
+<div class="card" role="listitem"><div class="mute">Work-rate</div><div class="big">{{ t.work_rate.points_per_week }} <span class="mute">pts / week</span></div><div class="mute">{{ t.work_rate.n }} tasks completed ({{ t.work_rate.tasks_per_week }} per week)</div></div>
+<div class="card" role="listitem"><div class="mute">Cycle time (median)</div><div class="big">{{ t.cycle_time.median_days if t.cycle_time.median_days is not none else 'No data' }} <span class="mute">days</span></div><div class="mute">{{ t.cycle_time.n }} completed items</div></div>
+<div class="card" role="listitem"><div class="mute">Rework rate</div><div class="big">{{ '%.0f%%'|format(t.rework.rate*100) if t.rework.rate is not none else 'No data' }}</div><div class="mute">{{ t.rework.n }} completed items</div></div></div>
+<div class="grid" style="margin-top:12px">
+<div class="card chartcard"><h2>On-time rate, weekly</h2><div class="chart"><canvas id="c1" role="img" aria-label="Weekly on-time rate"></canvas></div></div>
+<div class="card chartcard"><h2>Points completed per week</h2><div class="chart"><canvas id="c2" role="img" aria-label="Weekly points with rolling average"></canvas></div></div>
+<div class="card chartcard"><h2>Cycle time, weekly median (days)</h2><div class="chart"><canvas id="c3" role="img" aria-label="Weekly median cycle time"></canvas></div></div>
+<div class="card chartcard"><h2>Rework rate, monthly</h2><div class="chart"><canvas id="c4" role="img" aria-label="Monthly rework rate"></canvas></div></div></div>
+<div class="card" style="margin-top:12px"><h2>Deliverables behind these numbers</h2><div class="wrap"><table>
+<thead><tr><th>Deliverable</th><th>Points</th><th>Deadline</th><th>Status</th></tr></thead><tbody>
+{% for i in items %}<tr><td>{{ i.title }}</td><td>{{ i.points if i.points is not none else '–' }}</td><td>{{ i.deadline }}</td><td>{{ i.status }}</td></tr>
+{% else %}<tr><td colspan="4">No deliverables yet.</td></tr>{% endfor %}</tbody></table></div></div>
+<script id="d" type="application/json">{{ data|tojson }}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const D=JSON.parse(document.getElementById('d').textContent),acc=getComputedStyle(document.documentElement).getPropertyValue('--acc');
+const lab=(a,k)=>a.map(x=>`${x[k]} · n=${x.n??x.tasks}`);
+const short=function(v){const s=String(this.getLabelForValue(v)).split(' · ')[0];const d=new Date(s+'T00:00:00');
+  return isNaN(d)?s:d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});};
+const legend={position:'bottom',labels:{usePointStyle:true,boxWidth:8,boxHeight:8,font:{size:11},padding:10,
+  filter:i=>!/^Target band/.test(i.text)}};
+const base=(extra={})=>({responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend},
+  scales:{x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:6,callback:short}},...extra}});
+if(window.Chart){
+new Chart(c1,{type:'line',data:{labels:lab(D.on_time,'week'),datasets:[{label:'On-time rate',data:D.on_time.map(x=>x.rate),borderColor:acc,spanGaps:true},
+ {label:'Target band low',data:D.on_time.map(_=>D.band[0]),borderDash:[4,4],pointRadius:0,borderColor:'#999',borderWidth:1},{label:'Target band high',data:D.on_time.map(_=>D.band[1]),borderDash:[4,4],pointRadius:0,borderColor:'#999',borderWidth:1}]},options:base({y:{min:0,max:1,ticks:{callback:v=>Math.round(v*100)+'%'}}})});
+new Chart(c2,{data:{labels:lab(D.work_rate,'week'),datasets:[{type:'bar',label:'Points',data:D.work_rate.map(x=>x.points),backgroundColor:acc},{type:'line',label:'4-week rolling average',data:D.work_rate.map(x=>x.rolling),borderColor:'#b8671f'}]},options:base()});
+new Chart(c3,{type:'line',data:{labels:lab(D.cycle_time,'week'),datasets:[{label:'Median days',data:D.cycle_time.map(x=>x.median_days),borderColor:acc,spanGaps:true}]},options:base()});
+new Chart(c4,{type:'bar',data:{labels:lab(D.rework,'month'),datasets:[{label:'Rework rate',data:D.rework.map(x=>x.rate),backgroundColor:acc}]},options:base({y:{min:0,max:1,ticks:{callback:v=>Math.round(v*100)+'%'}}})});}
+</script>{% endblock %}

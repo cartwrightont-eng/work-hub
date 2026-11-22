@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% from "_macros.html" import cell, period_form %}
+{% block title %}Organisation{% endblock %}
+{% block body %}<h1>Organisation overview</h1>
+<p class="note">Figures are input to a review conversation, not the verdict. Teams and people are listed alphabetically; each is compared only with its own previous period.</p>
+{{ period_form(data.period_weeks, periods, data.as_of) }}
+<div class="card"><h2>Teams</h2><div class="wrap"><table><thead><tr><th>Team</th><th>Lead</th><th>People</th><th>On-time rate</th><th>Rework rate</th><th>Detail</th></tr></thead><tbody>
+{% for t in data.teams %}<tr><td>{{ t.name }}</td><td>{{ t.lead or '–' }}</td><td>{{ t.people }}</td><td>{{ cell(t.on_time) }}</td><td>{{ cell(t.rework) }}</td><td><a href="/team/{{ t.id }}?weeks={{ data.period_weeks }}">Open team</a></td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><h2>People</h2><div class="wrap"><table><thead><tr><th>Person</th><th>Team and role</th><th>On-time rate</th><th>Rework rate</th><th>Detail</th></tr></thead><tbody>
+{% for p in data.people %}<tr><td>{{ p.name }}</td><td>{{ p.role }}</td><td>{{ cell(p.on_time) }}</td><td>{{ cell(p.rework) }}</td><td><a href="/people/{{ p.id }}?weeks={{ [data.period_weeks,4]|max }}">Open scorecard</a></td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}
