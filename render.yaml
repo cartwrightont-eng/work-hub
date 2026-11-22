@@ -2,43 +2,18 @@ services:
   - type: web
     name: work-hub
     runtime: python
-    plan: starter
+    plan: free
     buildCommand: pip install -r requirements.txt
-    preDeployCommand: python -c "from app.db import init_db; init_db()"
-    startCommand: gunicorn wsgi:app --workers 2 --bind 0.0.0.0:$PORT
+    startCommand: python -c "from app.db import init_db; init_db()" && gunicorn wsgi:app --workers 2 --bind 0.0.0.0:$PORT
     healthCheckPath: /healthz
-    disk:                       # uploaded files live here; without a disk they vanish on every deploy
-      name: uploads
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: DATABASE_URL
         sync: false             # paste the Neon connection string (with sslmode=require)
       - key: JWT_SECRET_KEY
         generateValue: true
-      - key: STORAGE_DIR
-        value: /var/data/uploads
+      - key: STORAGE_BACKEND
+        value: db               # uploads are kept in Postgres; the free plan has no persistent disk
       - key: PROXY_HOPS
         value: "1"
       - key: PYTHON_VERSION
         value: 3.12.3
-  - type: cron                    # sends due-soon and overdue reminders
-    name: work-hub-notify
-    runtime: python
-    schedule: "*/15 * * * *"
-    buildCommand: pip install -r requirements.txt
-    startCommand: python notify.py
-    envVars:
-      - fromService: {type: web, name: work-hub, envVarKey: DATABASE_URL}
-      - key: MAIL_BACKEND
-        value: smtp
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
-      - key: SMTP_FROM
-        sync: false
-      - key: APP_URL
-        sync: false
