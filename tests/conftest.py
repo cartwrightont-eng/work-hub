@@ -1,7 +1,7 @@
 import os, tempfile, pytest
 os.environ.setdefault("MAIL_BACKEND", "memory")
 os.environ.setdefault("STORAGE_DIR", tempfile.mkdtemp(prefix="hub-test-"))
-os.environ.setdefault("DATABASE_URL", "postgresql://hub:hub@localhost/hub_test")
+os.environ.setdefault("DATABASE_URL", "postgresql:///workhub_test")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-not-for-production-0123456789")
 from app import create_app
 from app.db import db_cursor, init_db

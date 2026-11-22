@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Request access · Work Hub</title><style>
+body{font:16px system-ui,sans-serif;background:#f6f5f1;color:#1d2521;display:grid;place-items:center;min-height:100vh;margin:0;padding:16px;box-sizing:border-box}
+form{background:#fff;padding:24px;border-radius:10px;width:min(380px,100%);border:1px solid #ddd}
+label{display:block;margin:12px 0 4px;font-weight:600}input,select{width:100%;padding:10px;box-sizing:border-box;border:1px solid #888;border-radius:6px;font:inherit;background:#fff}
+button{margin-top:16px;width:100%;padding:11px;background:#1f6f5c;color:#fff;border:0;border-radius:6px;font:inherit;cursor:pointer}
+#e{min-height:1.2em;color:#a02020}#e.ok{color:#1f6f5c}small{color:#4a5651}</style></head><body>
+<form id="f"><h1 style="font-size:1.3rem;margin:0">Request access</h1>
+<small>A manager approves new accounts before you can sign in.</small>
+<label for="n">Full name</label><input id="n" autocomplete="name" required maxlength="80">
+<label for="em">Email</label><input id="em" type="email" autocomplete="username" required>
+<label for="pw">Password (10+ characters)</label><input id="pw" type="password" minlength="10" autocomplete="new-password" required>
+<label for="t">Team</label><select id="t" required><option value="">Choose…</option>{% for t in teams %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select>
+<label for="r">Role</label><select id="r" required>{% for r in roles %}<option value="{{ r }}">{{ r|capitalize }}</option>{% endfor %}</select>
+<label for="c">Team code</label><input id="c" autocomplete="off" required>
+<p id="e" role="alert"></p><button type="submit">Send request</button>
+<p><small>Already approved? <a href="/login">Sign in</a></small></p></form>
+<script>document.getElementById('f').addEventListener('submit',async ev=>{ev.preventDefault();
+const r=await fetch('/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({full_name:n.value,email:em.value,password:pw.value,team_id:t.value,role:document.getElementById("r").value,code:c.value})});
+const d=await r.json().catch(()=>({}));
+if(r.ok){e.className='ok';e.textContent='Request sent. You can sign in once a manager approves it.';f.reset();}
+else{e.className='';e.textContent=r.status===429?'Too many attempts. Try again later.':(d.error||'Something went wrong.');}});
+</script></body></html>

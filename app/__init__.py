@@ -2,7 +2,7 @@ import os
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
-from . import auth, people, deliverables, dashboard, overview, goals, documents, admin, review, work
+from . import auth, people, deliverables, dashboard, overview, goals, documents, admin, review, work, signup
 
 def create_app(testing=False):
     app = Flask(__name__)
@@ -30,11 +30,16 @@ def create_app(testing=False):
     app.register_blueprint(admin.bp)
     app.register_blueprint(review.bp)
     app.register_blueprint(work.bp)
+    app.register_blueprint(signup.bp)
 
     @app.get("/")
     def home():
         from flask import redirect
         return redirect("/login")
+
+    @app.context_processor
+    def brand():
+        return {"brand_name": os.environ.get("BRAND_NAME", "")}
 
     @app.get("/healthz")
     def healthz():

@@ -33,4 +33,49 @@ def get_storage():
     backend = os.environ.get("STORAGE_BACKEND", "local")
     if backend == "local":
         return LocalStorage(os.environ.get("STORAGE_DIR", "instance/uploads"))
+    if backend == "db":
+        return PostgresStorage(os.environ["DATABASE_URL"])
     raise RuntimeError(f"unknown STORAGE_BACKEND {backend!r}")
+
+
+class PostgresStorage(Storage):
+    """Keeps file bytes in Postgres so uploads survive deploys on hosts with no persistent disk."""
+    def __init__(self, dsn):
+        self.dsn = dsn
+        self._ready = False
+
+    def _connect(self):
+        try:
+            import psycopg
+            return psycopg.connect(self.dsn)
+        except ImportError:
+            import psycopg2
+            return psycopg2.connect(self.dsn)
+
+    def _run(self, sql, params=(), fetch=False):
+        if not _KEY.match(params[0] if params else "0" * 32): raise ValueError("bad storage key")
+        conn = self._connect()
+        try:
+            cur = conn.cursor()
+            if not self._ready:
+                cur.execute("CREATE TABLE IF NOT EXISTS file_blobs (storage_key TEXT PRIMARY KEY, data BYTEA NOT NULL)")
+                self._ready = True
+            cur.execute(sql, params)
+            row = cur.fetchone() if fetch else None
+            conn.commit()
+            return row
+        finally:
+            conn.close()
+
+    def save(self, key, data):
+        self._run("INSERT INTO file_blobs (storage_key, data) VALUES (%s, %s) "
+                  "ON CONFLICT (storage_key) DO UPDATE SET data = EXCLUDED.data", (key, bytes(data)))
+
+    def open(self, key):
+        import io
+        row = self._run("SELECT data FROM file_blobs WHERE storage_key = %s", (key,), fetch=True)
+        if row is None: raise FileNotFoundError(key)
+        return io.BytesIO(bytes(row[0]))
+
+    def delete(self, key):
+        self._run("DELETE FROM file_blobs WHERE storage_key = %s", (key,))

@@ -110,3 +110,11 @@ CREATE TABLE IF NOT EXISTS notifications (
   deliverable_id INT REFERENCES deliverables(id), subject TEXT NOT NULL, body TEXT NOT NULL,
   dedupe_key TEXT NOT NULL UNIQUE, attempts INT NOT NULL DEFAULT 0, error TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(), sent_at TIMESTAMPTZ);
+
+CREATE TABLE IF NOT EXISTS signup_requests (
+  id SERIAL PRIMARY KEY, org_id INT NOT NULL REFERENCES organisations(id),
+  full_name TEXT NOT NULL, email TEXT NOT NULL, password_hash TEXT NOT NULL,
+  team_id INT NOT NULL REFERENCES teams(id), requested_role TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  decided_by INT REFERENCES users(id), decided_at TIMESTAMPTZ);
