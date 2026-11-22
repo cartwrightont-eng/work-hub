@@ -31,6 +31,11 @@ def create_app(testing=False):
     app.register_blueprint(review.bp)
     app.register_blueprint(work.bp)
 
+    @app.get("/")
+    def home():
+        from flask import redirect
+        return redirect("/login")
+
     @app.get("/healthz")
     def healthz():
         from .db import db_cursor
