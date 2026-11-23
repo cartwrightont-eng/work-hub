@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block title %}Join code{% endblock %}
+{% block body %}<h1>Join code</h1>
+<div class="card"><p class="mute">Give your team the organisation name and this code. They sign up at <b id="url"></b> and join as members. Generate a new code if this one leaks; the old one stops working at once.</p>
+<div class="row"><b id="code" class="big" style="letter-spacing:.1em">…</b>
+<button class="ghost" id="copy" type="button">Copy</button><button class="ghost" id="new" type="button">Generate a new code</button></div>
+<p class="mute">Organisation name to enter: <b id="org"></b></p><p id="msg" class="mute"></p></div>
+<script>document.addEventListener('DOMContentLoaded',async()=>{
+const $=i=>document.getElementById(i);$('url').textContent=location.origin+'/signup';
+const r=await hub.call('GET','/api/join-code');
+if(!r.ok){hub.say($('msg'),'Could not load the code.',true);return}
+$('code').textContent=r.data.code;$('org').textContent=r.data.org;
+$('copy').onclick=()=>{navigator.clipboard.writeText($('code').textContent);hub.say($('msg'),'Copied.')};
+$('new').onclick=async()=>{if(!confirm('The old code will stop working. Continue?'))return;
+const n=await hub.call('POST','/api/join-code/regenerate');
+if(n.ok){$('code').textContent=n.data.code;hub.say($('msg'),'New code created.')}else hub.say($('msg'),'Could not create a new code.',true)};});</script>
+{% endblock %}

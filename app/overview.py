@@ -78,6 +78,10 @@ def _nav(cur, me, org):
                     "WHERE t.org_id=%s AND m.user_id=%s AND m.is_lead ORDER BY t.name", (org, me))
     teams = cur.fetchall()
     if ceo or teams: nav.append(("Review", "/review"))
+    cur.execute("""SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id=ur.role_id
+                   JOIN permissions p ON p.id=rp.permission_id
+                   WHERE ur.user_id=%s AND ur.org_id=%s AND p.key='manage_users' LIMIT 1""", (me, org))
+    if cur.fetchone(): nav.append(("Join code", "/join-code"))
     return nav + [(f"Team: {t['name']}", f"/team/{t['id']}") for t in teams]
 
 def _team(team_id):

@@ -1,5 +1,6 @@
 import re, secrets
-from flask import Blueprint, jsonify, request, render_template, g
+from flask import Blueprint, jsonify, request, render_template, g, redirect
+from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from flask_jwt_extended import create_access_token, set_access_cookies
 from .db import db_cursor
 from .auth import limiter, login_required
@@ -95,3 +96,19 @@ def regenerate():
         cur.execute("INSERT INTO audit_log (org_id, actor_id, action, detail) VALUES (%s,%s,'join_code_regenerated','{}')",
                     (g.user["org_id"], g.user["id"]))
         return jsonify(code=_show(code))
+
+
+@bp.get("/join-code")
+def join_code_page():
+    from .overview import _nav
+    try:
+        verify_jwt_in_request()
+        me = int(get_jwt_identity())
+    except Exception:
+        return redirect("/login")
+    with db_cursor(commit=False) as cur:
+        cur.execute("SELECT org_id FROM users WHERE id=%s AND active", (me,))
+        u = cur.fetchone()
+        if not u: return redirect("/login")
+        if not _can_see_code(cur, me, u["org_id"]): return render_template("notfound.html"), 404
+        return render_template("join_code.html", nav=_nav(cur, me, u["org_id"]))

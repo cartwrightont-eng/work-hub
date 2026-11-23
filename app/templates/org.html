@@ -7,5 +7,4 @@
 {% for t in data.teams %}<tr><td>{{ t.name }}</td><td>{{ t.lead or '–' }}</td><td>{{ t.people }}</td><td>{{ cell(t.on_time) }}</td><td>{{ cell(t.rework) }}</td><td><a href="/team/{{ t.id }}?weeks={{ data.period_weeks }}">Open team</a></td></tr>{% endfor %}</tbody></table></div></div>
 <div class="card"><h2>People</h2><div class="wrap"><table><thead><tr><th>Person</th><th>Team and role</th><th>On-time rate</th><th>Rework rate</th><th>Detail</th></tr></thead><tbody>
 {% for p in data.people %}<tr><td>{{ p.name }}</td><td>{{ p.role }}</td><td>{{ cell(p.on_time) }}</td><td>{{ cell(p.rework) }}</td><td><a href="/people/{{ p.id }}?weeks={{ [data.period_weeks,4]|max }}">Open scorecard</a></td></tr>{% endfor %}</tbody></table></div></div>
-{% include "_joincode.html" %}
 {% endblock %}
