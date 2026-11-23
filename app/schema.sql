@@ -118,3 +118,7 @@ CREATE TABLE IF NOT EXISTS signup_requests (
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   decided_by INT REFERENCES users(id), decided_at TIMESTAMPTZ);
+
+CREATE TABLE IF NOT EXISTS org_join_codes (
+  org_id INT PRIMARY KEY REFERENCES organisations(id),
+  code TEXT NOT NULL UNIQUE, created_at TIMESTAMPTZ NOT NULL DEFAULT now());

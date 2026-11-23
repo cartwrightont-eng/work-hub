@@ -8,7 +8,7 @@ button{margin-top:16px;width:100%;padding:11px;background:#1f6f5c;color:#fff;bor
 <form id="f"><h1 style="font-size:1.3rem;margin:0">Work Hub</h1>
 <label for="email">Email</label><input id="email" type="email" autocomplete="username" required>
 <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required>
-<p id="e" role="alert"></p><button type="submit">Sign in</button><p style="font-size:.9rem;margin:14px 0 0"><a href="/signup">Request access</a></p></form>
+<p id="e" role="alert"></p><button type="submit">Sign in</button><p style="font-size:.9rem;margin:14px 0 0"><a href="/signup">Join with a code</a></p></form>
 <script>document.getElementById('f').addEventListener('submit',async ev=>{ev.preventDefault();
 const r=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({email:email.value,password:pw.value})});

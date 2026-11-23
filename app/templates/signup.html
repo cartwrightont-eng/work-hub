@@ -1,24 +1,29 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Request access · Work Hub</title><style>
+<title>Join your team · Work Hub</title><style>
 body{font:16px system-ui,sans-serif;background:#f6f5f1;color:#1d2521;display:grid;place-items:center;min-height:100vh;margin:0;padding:16px;box-sizing:border-box}
 form{background:#fff;padding:24px;border-radius:10px;width:min(380px,100%);border:1px solid #ddd}
 label{display:block;margin:12px 0 4px;font-weight:600}input,select{width:100%;padding:10px;box-sizing:border-box;border:1px solid #888;border-radius:6px;font:inherit;background:#fff}
 button{margin-top:16px;width:100%;padding:11px;background:#1f6f5c;color:#fff;border:0;border-radius:6px;font:inherit;cursor:pointer}
-#e{min-height:1.2em;color:#a02020}#e.ok{color:#1f6f5c}small{color:#4a5651}</style></head><body>
-<form id="f"><h1 style="font-size:1.3rem;margin:0">Request access</h1>
-<small>A manager approves new accounts before you can sign in.</small>
-<label for="n">Full name</label><input id="n" autocomplete="name" required maxlength="80">
+#e{min-height:1.2em;color:#a02020}small{color:#4a5651}#s2{display:none}#c{text-transform:uppercase;letter-spacing:.1em}</style></head><body>
+<form id="f"><h1 style="font-size:1.3rem;margin:0">Join your team</h1>
+<small>Ask your CEO for the organisation name and join code.</small>
+<div id="s1"><label for="o">Organisation name</label><input id="o" autocomplete="organization" required>
+<label for="c">Join code</label><input id="c" autocomplete="off" placeholder="XXXX-XXXX" required>
+<button type="button" id="next">Continue</button></div>
+<div id="s2"><label for="n">Full name</label><input id="n" autocomplete="name" required maxlength="80">
 <label for="em">Email</label><input id="em" type="email" autocomplete="username" required>
 <label for="pw">Password (10+ characters)</label><input id="pw" type="password" minlength="10" autocomplete="new-password" required>
-<label for="t">Team</label><select id="t" required><option value="">Choose…</option>{% for t in teams %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select>
-<label for="r">Role</label><select id="r" required>{% for r in roles %}<option value="{{ r }}">{{ r|capitalize }}</option>{% endfor %}</select>
-<label for="c">Team code</label><input id="c" autocomplete="off" required>
-<p id="e" role="alert"></p><button type="submit">Send request</button>
-<p><small>Already approved? <a href="/login">Sign in</a></small></p></form>
-<script>document.getElementById('f').addEventListener('submit',async ev=>{ev.preventDefault();
-const r=await fetch('/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({full_name:n.value,email:em.value,password:pw.value,team_id:t.value,role:document.getElementById("r").value,code:c.value})});
-const d=await r.json().catch(()=>({}));
-if(r.ok){e.className='ok';e.textContent='Request sent. You can sign in once a manager approves it.';f.reset();}
-else{e.className='';e.textContent=r.status===429?'Too many attempts. Try again later.':(d.error||'Something went wrong.');}});
+<label for="t">Team</label><select id="t" required></select>
+<button type="submit">Create account</button></div>
+<p id="e" role="alert"></p><p><small>Already have an account? <a href="/login">Sign in</a></small></p></form>
+<script>
+const $=id=>document.getElementById(id),post=(u,b)=>fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+const msg=async r=>{const d=await r.json().catch(()=>({}));return[d,r.status===429?'Too many attempts. Wait a bit and try again.':(d.error||'Something went wrong.')]};
+$('next').onclick=async()=>{$('e').textContent='';const r=await post('/auth/signup/lookup',{org:$('o').value,code:$('c').value});
+if(!r.ok){$('e').textContent=(await msg(r))[1];return}
+const d=await r.json();$('t').innerHTML='<option value="">Choose your team…</option>'+d.teams.map(x=>'<option value="'+x.id+'">'+x.name.replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';')+'</option>').join('');
+$('s1').style.display='none';$('s2').style.display='block';$('n').focus()};
+$('f').addEventListener('submit',async ev=>{ev.preventDefault();$('e').textContent='';
+const r=await post('/auth/signup',{org:$('o').value,code:$('c').value,full_name:$('n').value,email:$('em').value,password:$('pw').value,team_id:$('t').value});
+if(r.ok)location='/my-work';else $('e').textContent=(await msg(r))[1]});
 </script></body></html>
