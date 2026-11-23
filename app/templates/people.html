@@ -1,10 +1,12 @@
 {% extends "base.html" %}{% block title %}People{% endblock %}
 {% block body %}<h1>People and teams</h1>
-<p class="note">Add the email and a starting password for each person so they can sign in. Deactivating someone signs them out at once.</p>
-<div class="card"><h2>People</h2><div class="wrap"><table><thead><tr><th>Name</th><th>Teams</th><th>Roles</th><th>Email</th><th>New password</th><th>Active</th><th></th></tr></thead><tbody>
-{% for p in d.people %}<tr data-id="{{ p.id }}"><td>{{ p.name }}</td>
+<p class="note">Add the email and a starting password for each person so they can sign in. Deactivating someone signs them out at once. Choose a team and tick "Leads this team" to make someone a lead; it applies from their next page load.</p>
+<div class="card"><h2>People</h2><div class="wrap"><table><thead><tr><th>Name</th><th>Teams</th><th>Roles</th><th>Team and lead</th><th>Email</th><th>New password</th><th>Active</th><th></th></tr></thead><tbody>
+{% for p in d.people %}{% set cur = p.teams[0] if p.teams else none %}<tr data-id="{{ p.id }}" data-team="{{ cur.team_id if cur else '' }}" data-lead="{{ '1' if cur and cur.is_lead else '' }}" data-roles='{{ p.roles|tojson }}'><td>{{ p.name }}</td>
 <td>{% for t in p.teams %}{{ t.team }}{{ ' (lead)' if t.is_lead }}{% if t.reports_to %}, reports to {{ t.reports_to }}{% endif %}<br>{% else %}–{% endfor %}</td>
 <td>{{ p.roles|join(', ') or '–' }}</td>
+<td><label class="mute" for="t{{ p.id }}">Team</label><select id="t{{ p.id }}" style="padding:6px"><option value="">No team</option>{% for t in d.teams %}<option value="{{ t.id }}" {{ 'selected' if cur and cur.team_id == t.id }}>{{ t.name }}</option>{% endfor %}</select>
+<label class="mute" style="display:block"><input type="checkbox" id="l{{ p.id }}" {{ 'checked' if cur and cur.is_lead }}> Leads this team</label></td>
 <td><label class="mute" for="e{{ p.id }}">Email</label><input id="e{{ p.id }}" type="email" value="{{ p.email or '' }}" style="width:14em;padding:6px"></td>
 <td><label class="mute" for="w{{ p.id }}">{{ 'Reset password' if p.has_password else 'Set password' }}</label><input id="w{{ p.id }}" type="password" autocomplete="new-password" style="width:11em;padding:6px"></td>
 <td><label class="mute" for="a{{ p.id }}">Active</label><input id="a{{ p.id }}" type="checkbox" {{ 'checked' if p.active }}></td>
@@ -24,7 +26,14 @@
 async function send(m,u,b){const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf},body:JSON.stringify(b)});
  if(r.ok){location.reload();}else{msg.textContent=(await r.json()).error||'That did not work.';}}
 document.querySelectorAll('button.save').forEach(b=>b.addEventListener('click',()=>{const id=b.closest('tr').dataset.id,body={email:document.getElementById('e'+id).value,active:document.getElementById('a'+id).checked};
- const pw=document.getElementById('w'+id).value;if(pw)body.password=pw;send('PATCH','/api/admin/users/'+id,body);}));
+ const pw=document.getElementById('w'+id).value;if(pw)body.password=pw;
+ const row=b.closest('tr'),team=document.getElementById('t'+id).value,lead=document.getElementById('l'+id).checked,was=row.dataset.team,wasLead=!!row.dataset.lead;
+ if(team!==was||(team&&lead!==wasLead)){
+  if(team)body.membership={team_id:Number(team),is_lead:lead};
+  if(was&&team!==was)body.leave_team_id=Number(was);
+  const keep=JSON.parse(row.dataset.roles).filter(r=>r!=='lead'&&r!=='member');
+  body.roles=keep.concat([team&&lead?'lead':'member']);}
+ send('PATCH','/api/admin/users/'+id,body);}));
 newperson.addEventListener('submit',e=>{e.preventDefault();const b={full_name:n_name.value,email:n_email.value||null,password:n_pw.value||null};
  if(n_team.value)b.membership={team_id:Number(n_team.value),is_lead:n_lead.checked,reports_to:n_boss.value?Number(n_boss.value):null};
  if(n_role.value)b.roles=[n_role.value];send('POST','/api/admin/users',b);});

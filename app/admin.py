@@ -86,7 +86,12 @@ def edit_user(uid):
         m = j.get("membership")
         if m:
             _check_membership(cur, org, uid, m)
-            svc.add_member(cur, org, m["team_id"], uid, bool(m.get("is_lead")), m.get("reports_to"))
+            if "reports_to" in m: boss = m["reports_to"]
+            elif m.get("is_lead"): boss = None                      # a lead reports to nobody on the team
+            else:                                                   # omitted means "leave as it is"
+                cur.execute("SELECT reports_to FROM team_memberships WHERE org_id=%s AND team_id=%s AND user_id=%s", (org, m["team_id"], uid))
+                row = cur.fetchone(); boss = row["reports_to"] if row else None
+            svc.add_member(cur, org, m["team_id"], uid, bool(m.get("is_lead")), boss)
         if j.get("leave_team_id"):
             cur.execute("DELETE FROM team_memberships WHERE org_id=%s AND user_id=%s AND team_id=%s", (org, uid, j["leave_team_id"]))
         if "roles" in j: svc.set_roles(cur, org, uid, j["roles"])
